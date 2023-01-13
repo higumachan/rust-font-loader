@@ -68,27 +68,14 @@
 
 
 extern crate libc;
+use std::path::PathBuf;
 
-#[cfg(target_os = "windows")]
-extern crate winapi;
+pub type QueryResult = Vec<(String, Option<PathBuf>)>;
 
-#[cfg(target_os = "windows")]
-mod win32;
-#[cfg(target_os = "windows")]
-pub use win32::*;
 
-#[cfg(target_os = "macos")]
-extern crate core_text;
-#[cfg(target_os = "macos")]
-extern crate core_foundation;
-#[cfg(target_os = "macos")]
-mod macos;
-#[cfg(target_os = "macos")]
-pub use macos::*;
-
-#[cfg(all(unix, not(target_os = "macos")))]
+#[cfg(all(unix))]
 extern crate fontconfig as servo_fontconfig;
-#[cfg(all(unix, not(target_os = "macos")))]
+#[cfg(all(unix))]
 mod fontconfig;
-#[cfg(all(unix, not(target_os = "macos")))]
+#[cfg(all(unix))]
 pub use fontconfig::*;

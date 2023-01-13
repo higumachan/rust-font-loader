@@ -32,8 +32,11 @@ pub mod system_fonts {
     use std::ffi::{CStr, CString};
     use std::io::prelude::*;
     use std::fs::File;
+    use std::path::PathBuf;
+    use std::str::FromStr;
 
     use std::sync::{Once, ONCE_INIT};
+    use QueryResult;
 
     static FC_FAMILY: &'static [u8] = b"family\0";
     static FC_FILE: &'static [u8] = b"file\0";
@@ -72,6 +75,7 @@ pub mod system_fonts {
 
     static INIT_FONTCONFIG: Once = ONCE_INIT;
     static mut CONFIG: *mut FcConfig = 0 as *mut FcConfig;
+
 
     fn init() -> *mut FcConfig {
         unsafe {
@@ -170,15 +174,15 @@ pub mod system_fonts {
 
     /// Query the names of all fonts installed in the system
     /// Note that only truetype fonts are supported
-    pub fn query_all() -> Vec<String> {
+    pub fn query_all() -> QueryResult {
         let mut property = FontPropertyBuilder::new().build();
         query_specific(&mut property)
     }
 
     /// Query the names of specifc fonts installed in the system
     /// Note that only truetype fonts are supported
-    pub fn query_specific(property: &mut FontProperty) -> Vec<String> {
-        let mut fonts: Vec<String> = Vec::new();
+    pub fn query_specific(property: &mut FontProperty) -> QueryResult {
+        let mut fonts = Vec::new();
         unsafe {
             let config = init();
 
@@ -190,6 +194,7 @@ pub mod system_fonts {
             add_int(pattern, FC_WEIGHT, property.weight);
             add_int(pattern, FC_SLANT, property.slant);
 
+
             let null_ptr: *const c_char = ptr::null();
             let o1 = FC_FAMILY.as_ptr() as *mut c_char;
             let os = FcObjectSetBuild(o1, null_ptr);
@@ -197,13 +202,17 @@ pub mod system_fonts {
 
             let patterns = slice::from_raw_parts((*fs).fonts, (*fs).nfont as usize);
             for pat in patterns {
+                let mut result = FcResultNoMatch;
+                let font_pat = FcFontMatch(config, *pat, &mut result);
+
                 let family_name = get_string(*pat, FC_FAMILY).unwrap();
-                fonts.push(family_name);
+                let file = get_string(font_pat, FC_FILE).ok();
+                fonts.push((family_name, (file.and_then(|x| PathBuf::from_str(x.as_str()).ok()))));
             }
         }
 
-        fonts.sort();
-        fonts.dedup();
+        fonts.sort_by_key(|x| x.0.clone());
+        fonts.dedup_by_key(|x| x.0.clone());
         fonts
     }
 
