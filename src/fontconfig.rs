@@ -18,21 +18,27 @@
 
 /// Font loading utilities for installed system fonts
 pub mod system_fonts {
-    use servo_fontconfig::fontconfig::{FcConfig, FcInitLoadConfigAndFonts, FcNameParse};
-    use servo_fontconfig::fontconfig::{FcPattern, FcPatternCreate, FcPatternDestroy, FcFontMatch};
-    use servo_fontconfig::fontconfig::{FcFontList, FcObjectSetBuild, FcChar8, FcDefaultSubstitute};
-    use servo_fontconfig::fontconfig::{FcPatternGetString, FcPatternAddInteger, FcPatternGetInteger};
-    use servo_fontconfig::fontconfig::{FcResultMatch, FcMatchPattern, FcResultNoMatch, FcConfigSubstitute};
     use servo_fontconfig::fontconfig::FcPatternAddString;
+    use servo_fontconfig::fontconfig::{
+        FcChar8, FcDefaultSubstitute, FcFontList, FcObjectSetBuild,
+    };
+    use servo_fontconfig::fontconfig::{FcConfig, FcInitLoadConfigAndFonts, FcNameParse};
+    use servo_fontconfig::fontconfig::{
+        FcConfigSubstitute, FcMatchPattern, FcResultMatch, FcResultNoMatch,
+    };
+    use servo_fontconfig::fontconfig::{FcFontMatch, FcPattern, FcPatternCreate, FcPatternDestroy};
+    use servo_fontconfig::fontconfig::{
+        FcPatternAddInteger, FcPatternGetInteger, FcPatternGetString,
+    };
 
-    use libc::{c_int, c_char};
+    use libc::{c_char, c_int};
 
+    use std::ffi::{CStr, CString};
+    use std::fs::File;
+    use std::io::prelude::*;
+    use std::path::PathBuf;
     use std::ptr;
     use std::slice;
-    use std::ffi::{CStr, CString};
-    use std::io::prelude::*;
-    use std::fs::File;
-    use std::path::PathBuf;
     use std::str::FromStr;
 
     use std::sync::{Once, ONCE_INIT};
@@ -75,7 +81,6 @@ pub mod system_fonts {
 
     static INIT_FONTCONFIG: Once = ONCE_INIT;
     static mut CONFIG: *mut FcConfig = 0 as *mut FcConfig;
-
 
     fn init() -> *mut FcConfig {
         unsafe {
@@ -190,10 +195,11 @@ pub mod system_fonts {
             if !property.family.is_empty() {
                 add_string(pattern, FC_FAMILY, &property.family);
             }
-            property.spacing.map(|spacing| add_int(pattern, FC_SPACING, spacing));
+            property
+                .spacing
+                .map(|spacing| add_int(pattern, FC_SPACING, spacing));
             add_int(pattern, FC_WEIGHT, property.weight);
             add_int(pattern, FC_SLANT, property.slant);
-
 
             let null_ptr: *const c_char = ptr::null();
             let o1 = FC_FAMILY.as_ptr() as *mut c_char;
@@ -207,7 +213,10 @@ pub mod system_fonts {
 
                 let family_name = get_string(*pat, FC_FAMILY).unwrap();
                 let file = get_string(font_pat, FC_FILE).ok();
-                fonts.push((family_name, (file.and_then(|x| PathBuf::from_str(x.as_str()).ok()))));
+                fonts.push((
+                    family_name,
+                    (file.and_then(|x| PathBuf::from_str(x.as_str()).ok())),
+                ));
             }
         }
 
