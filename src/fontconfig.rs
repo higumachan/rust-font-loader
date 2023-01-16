@@ -92,10 +92,11 @@ pub mod system_fonts {
     }
 
     /// The platform specific font properties
+    #[derive(Debug)]
     pub struct FontProperty {
-        slant: c_int,
-        weight: c_int,
-        family: String,
+        slant: Option<c_int>,
+        weight: Option<c_int>,
+        family: Option<String>,
         spacing: Option<c_int>,
     }
 
@@ -107,26 +108,26 @@ pub mod system_fonts {
     impl FontPropertyBuilder {
         pub fn new() -> FontPropertyBuilder {
             let property = FontProperty {
-                slant: FC_SLANT_ROMAN,
-                weight: FC_WEIGHT_REGULAR,
-                family: String::new(),
+                slant: None,
+                weight: None,
+                family: None,
                 spacing: None,
             };
             FontPropertyBuilder { property: property }
         }
 
         pub fn italic(mut self) -> FontPropertyBuilder {
-            self.property.slant = FC_SLANT_ITALIC;
+            self.property.slant = Some(FC_SLANT_ITALIC);
             self
         }
 
         pub fn oblique(mut self) -> FontPropertyBuilder {
-            self.property.slant = FC_SLANT_OBLIQUE;
+            self.property.slant = Some(FC_SLANT_OBLIQUE);
             self
         }
 
         pub fn bold(mut self) -> FontPropertyBuilder {
-            self.property.weight = FC_WEIGHT_BOLD;
+            self.property.weight = Some(FC_WEIGHT_BOLD);
             self
         }
 
@@ -136,8 +137,7 @@ pub mod system_fonts {
         }
 
         pub fn family(mut self, name: &str) -> FontPropertyBuilder {
-            self.property.family.clear();
-            self.property.family.push_str(name);
+            self.property.family = Some(name.to_string());
             self
         }
 
@@ -150,13 +150,15 @@ pub mod system_fonts {
     /// Note that only truetype fonts are supported
     pub fn get(property: &FontProperty) -> Option<(Vec<u8>, c_int)> {
         let config = init();
-        let family: &str = &property.family;
+        let family: &str = &property.family.as_ref().unwrap().as_str();
 
         unsafe {
             let name = CString::new(family).unwrap();
             let pat = FcNameParse(name.as_ptr() as *const FcChar8);
-            add_int(pat, FC_SLANT, property.slant);
-            add_int(pat, FC_WEIGHT, property.weight);
+            property.slant.map(|slant| add_int(pat, FC_SLANT, slant));
+            property
+                .weight
+                .map(|weight| add_int(pat, FC_WEIGHT, weight));
             FcConfigSubstitute(config, pat, FcMatchPattern);
             FcDefaultSubstitute(pat);
 
@@ -191,15 +193,21 @@ pub mod system_fonts {
         unsafe {
             let config = init();
 
+            dbg!(&property);
+
             let pattern = FcPatternCreate();
-            if !property.family.is_empty() {
-                add_string(pattern, FC_FAMILY, &property.family);
+            if let Some(family) = property.family.as_ref() {
+                add_string(pattern, FC_FAMILY, family);
             }
             property
                 .spacing
                 .map(|spacing| add_int(pattern, FC_SPACING, spacing));
-            add_int(pattern, FC_WEIGHT, property.weight);
-            add_int(pattern, FC_SLANT, property.slant);
+            property
+                .weight
+                .map(|weight| add_int(pattern, FC_WEIGHT, weight));
+            property
+                .slant
+                .map(|slant| add_int(pattern, FC_SLANT, slant));
 
             let null_ptr: *const c_char = ptr::null();
             let o1 = FC_FAMILY.as_ptr() as *mut c_char;
