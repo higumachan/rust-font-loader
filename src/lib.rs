@@ -66,12 +66,36 @@
 //! }
 //! ```
 
-
 extern crate libc;
 use std::path::PathBuf;
 
-pub type QueryResult = Vec<(String, Option<PathBuf>)>;
+#[derive(Debug, Clone)]
+pub struct FontInfo {
+    family: String,
+    style: String,
+    path: Option<PathBuf>,
+}
 
+impl FontInfo {
+    pub fn new(family: String, style: String, path: Option<PathBuf>) -> Self {
+        Self {
+            family,
+            style,
+            path,
+        }
+    }
+    pub fn family(&self) -> &str {
+        &self.family
+    }
+    pub fn style(&self) -> &str {
+        &self.style
+    }
+    pub fn path(&self) -> &Option<PathBuf> {
+        &self.path
+    }
+}
+
+pub type QueryResult = Vec<FontInfo>;
 
 #[cfg(all(unix))]
 extern crate fontconfig as servo_fontconfig;

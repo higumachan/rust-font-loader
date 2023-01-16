@@ -42,7 +42,7 @@ pub mod system_fonts {
     use std::str::FromStr;
 
     use std::sync::{Once, ONCE_INIT};
-    use QueryResult;
+    use {FontInfo, QueryResult};
 
     static FC_FAMILY: &'static [u8] = b"family\0";
     static FC_FILE: &'static [u8] = b"file\0";
@@ -51,7 +51,7 @@ pub mod system_fonts {
     static FC_SLANT: &'static [u8] = b"slant\0";
     static FC_SPACING: &'static [u8] = b"spacing\0";
     //  static FC_FONTFORMAT: &'static [u8] = b"fontformat\0";
-    // 	static FC_STYLE: &'static [u8] = b"style\0";
+    static FC_STYLE: &'static [u8] = b"style\0";
     // 	static FC_FAMILYLANG: &'static[u8] = b"familylang\0";
     // 	static FC_CHARSET: &'static [u8] = b"charset\0";
     // 	static FC_LANG: &'static [u8] = b"lang\0";
@@ -211,7 +211,8 @@ pub mod system_fonts {
 
             let null_ptr: *const c_char = ptr::null();
             let o1 = FC_FAMILY.as_ptr() as *mut c_char;
-            let os = FcObjectSetBuild(o1, null_ptr);
+            let o2 = FC_STYLE.as_ptr() as *mut c_char;
+            let os = FcObjectSetBuild(o1, o2, null_ptr);
             let fs = FcFontList(config, pattern, os);
 
             let patterns = slice::from_raw_parts((*fs).fonts, (*fs).nfont as usize);
@@ -220,16 +221,18 @@ pub mod system_fonts {
                 let font_pat = FcFontMatch(config, *pat, &mut result);
 
                 let family_name = get_string(*pat, FC_FAMILY).unwrap();
+                let style_name = get_string(font_pat, FC_STYLE).unwrap();
                 let file = get_string(font_pat, FC_FILE).ok();
-                fonts.push((
+
+                fonts.push(FontInfo::new(
                     family_name,
-                    (file.and_then(|x| PathBuf::from_str(x.as_str()).ok())),
+                    style_name,
+                    file.and_then(|file| PathBuf::from_str(file.as_str()).ok()),
                 ));
             }
         }
 
-        fonts.sort_by_key(|x| x.0.clone());
-        fonts.dedup_by_key(|x| x.0.clone());
+        fonts.sort_by_key(|x| x.family.clone());
         fonts
     }
 
